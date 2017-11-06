@@ -1,0 +1,5 @@
+- src: git@github.com:jharley/ansible-example-base.git
+  scm: git
+  version: 1.0.0
+- src: Datadog.datadog
+  version: 1.4.0

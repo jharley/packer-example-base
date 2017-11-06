@@ -1,0 +1,17 @@
+---
+- name: Provision Packer-created Base Server
+  hosts: all
+  pre_tasks:
+    - name: Load group_vars/all
+      include_vars: group_vars/all
+    - name: Load global vault
+      include_vars: vars/secure.yml
+  tasks:
+    - name: Apply latest patches and updates
+      apt:
+        update_cache: yes
+        upgrade: dist
+        autoremove: yes
+    - name: Provision machine using ansible-example-base
+      include_role:
+        name: ansible-example-base

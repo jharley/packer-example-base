@@ -1,0 +1,44 @@
+version: 2
+jobs:
+  build:
+    environment:
+      - PACKER_VERSION: 1.1.1
+    docker:
+      - image: circleci/python:2.7
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-test-deps-{{ arch }}-{{ .Branch }}-{{ checksum "tests/requirements.txt" }}
+            - v1-test-deps-{{ arch }}-{{ .Branch }}
+      - run:
+          name: Download Packer
+          command: |
+            curl https://releases.hashicorp.com/packer/$PACKER_VERSION/packer_$PACKER_VERSION_linux_amd64.zip | zcat > ~/bin/packer
+            chmod 755 ~/bin/packer
+      - run:
+          name: Validate Packer template
+          command: packer validate template.json
+      - run:
+          name: Build Packer template
+          command: packer build template.json
+      - run:
+          name: Setup test environment dependencies
+          command: |
+            python -m virtualenv ~/venv
+            . ~/venv/bin/activate
+            pip install -r tests/requirements.txt
+      - save_cache:
+          key: v1-test-deps-{{ arch }}-{{ .Branch }}-{{ checksum "tests/requirements.txt" }}
+          paths:
+            - ~/venv
+      - run:
+          name: Verify built image
+          command: |
+            . ~/venv/bin/activate
+            mkdir -p /tmp/pytest-results
+            py.test -v tests --junit-xml=/tmp/pytest-results/output.xml
+      - store_test_results:
+          path: /tmp/pytest-results
+      - store_artifacts:
+          path: /tmp/pytest-results

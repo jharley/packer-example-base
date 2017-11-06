@@ -1,0 +1,69 @@
+{
+  "variables": {
+    "revision": "{{ env `CIRCLE_SHA1` }}",
+    "ami_name": "examplecorp/images/base-server-{{ timestamp }}",
+    "ami_description": "ExampleCorp Base Server Image",
+    "region": "us-east-2",
+    "instance_type": "m4.large",
+    "ssh_username": "ubuntu",
+    "canonical_account_id": "099720109477"
+  },
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "encrypt_boot": true,
+      "ami_name": "{{ user `ami_name` }}",
+      "region": "{{ user `region` }}",
+      "source_ami_filter": {
+        "filters": {
+          "root-device-type": "ebs",
+          "virtualization-type": "hvm",
+          "name": "*ubuntu-xenial-16.04-amd64-server-*"
+        },
+        "owners": [
+          "{{ user `canonical_account_id` }}"
+        ],
+        "most_recent": true
+      },
+      "ssh_username": "{{ user `ssh_username` }}",
+      "instance_type": "{{ user `instance_type` }}",
+      "ami_description": "{{ user `ami_description` }}",
+      "tags": {
+        "Name": "{{ user `ami_name` }}",
+        "Platform": "Ubuntu",
+        "OS_Version": "16.04",
+        "Revision": "{{ user `revision` }}"
+      }
+    }
+  ],
+  "provisioners": [
+    {
+      "pause_before": "60s",
+      "type": "shell",
+      "inline": [
+        "while [ ! -f /var/lib/cloud/instance/boot-finished ]; do echo 'Waiting for cloud-init to complete...'; sleep 10; done",
+        "echo Bootstrapping Python2.7 for Ansible...",
+        "sudo DEBIAN_FRONTEND=noninteractive apt-get -qq update -y >/dev/null",
+        "sudo DEBIAN_FRONTEND=noninteractive apt-get -qq install python2.7 python-pip -y >/dev/null"
+      ]
+    },
+    {
+      "type": "shell-local",
+      "command": "ansible-galaxy install -r {{ template_dir }}/requirements.yml -f"
+    },
+    {
+      "type": "ansible",
+      "playbook_file": "{{ template_dir }}/provisioning-playbook.yml",
+      "ansible_env_vars": [
+        "ANSIBLE_VAULT_PASSWORD_FILE={{ template_dir }}/bin/ansible-vault-credentials-from-env.sh"
+      ],
+      "extra_arguments": [
+        "--become"
+      ]
+    },
+    {
+      "type": "shell",
+      "script": "{{ template_dir }}/bin/cleanup-image.sh"
+    }
+  ]
+}
