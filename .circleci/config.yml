@@ -1,8 +1,6 @@
 version: 2
 jobs:
   build:
-    environment:
-      - PACKER_VERSION: 1.1.1
     docker:
       - image: circleci/python:2.7
     steps:
@@ -14,8 +12,9 @@ jobs:
       - run:
           name: Download Packer
           command: |
-            curl https://releases.hashicorp.com/packer/$PACKER_VERSION/packer_$PACKER_VERSION_linux_amd64.zip | zcat > ~/bin/packer
-            chmod 755 ~/bin/packer
+            curl https://releases.hashicorp.com/packer/1.1.1/packer_1.1.1_linux_amd64.zip > /tmp/packer.zip
+            unzip /tmp/packer.zip
+            sudo mv packer /usr/local/bin
       - run:
           name: Validate Packer template
           command: packer validate template.json
