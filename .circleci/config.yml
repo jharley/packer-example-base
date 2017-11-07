@@ -3,6 +3,7 @@ jobs:
   build:
     environment:
       - USER: circleci
+      - AWS_DEFAULT_REGION: us-east-2
     docker:
       - image: circleci/python:2.7
     steps:
@@ -26,10 +27,12 @@ jobs:
             . ~/venv/bin/activate
             packer validate template.json
       - run:
-          name: Build Packer template
+          name: Build Packer image
           command: |
             . ~/venv/bin/activate
             packer build template.json
+      - store_artifacts:
+          path: packer-manifest.json
       - run:
           name: Setup test environment dependencies
           command: |
@@ -43,9 +46,30 @@ jobs:
           name: Verify built image
           command: |
             . ~/venv/bin/activate
-            mkdir -p /tmp/pytest-results
-            py.test -v tests --junit-xml=/tmp/pytest-results/output.xml
+            export AMI_ID=$(cat packer-manifest.json | jq -r '.builds[].artifact_id' | cut -d\: -f2)
+            py.test -v tests --junit-xml=/tmp/test-results.xml
       - store_test_results:
-          path: /tmp/pytest-results
+          path: /tmp/test-results.xml
       - store_artifacts:
-          path: /tmp/pytest-results
+          path: /tmp/test-results.xml
+      - run:
+          name: Mark built image as verified
+          command: |
+            . ~/venv/bin/activate
+            export AMI_ID=$(cat packer-manifest.json | jq -r '.builds[].artifact_id' | cut -d\: -f2)
+            aws ec2 create-tags --resources $AMI_ID --tags Key=Verified,Value=True --region $AWS_DEFAULT_REGION
+workflows:
+  version: 2
+  commit:
+    jobs:
+      - build
+  monthly:
+    triggers:
+      - schedule:
+          cron: "0 13 7 * *"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      - build
