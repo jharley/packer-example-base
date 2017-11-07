@@ -3,7 +3,7 @@
     "revision": "{{ env `CIRCLE_SHA1` }}",
     "ami_name": "examplecorp/images/base-server-{{ timestamp }}",
     "ami_description": "ExampleCorp Base Server Image",
-    "region": "us-east-2",
+    "region": "{{ env `AWS_DEFAULT_REGION` }}",
     "instance_type": "m4.large",
     "ssh_username": "ubuntu",
     "canonical_account_id": "099720109477"
@@ -11,7 +11,7 @@
   "builders": [
     {
       "type": "amazon-ebs",
-      "encrypt_boot": true,
+      "encrypt_boot": false,
       "ami_name": "{{ user `ami_name` }}",
       "region": "{{ user `region` }}",
       "source_ami_filter": {
@@ -64,6 +64,13 @@
     {
       "type": "shell",
       "script": "{{ template_dir }}/bin/cleanup-image.sh"
+    }
+  ],
+  "post-processors": [
+    {
+      "type": "manifest",
+      "output": "packer-manifest.json",
+      "strip_path": true
     }
   ]
 }
